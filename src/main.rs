@@ -232,7 +232,7 @@ fn main() {
     );
     position.insert(
         WHITE_QUEEN,
-        0b0000000000000000000000000000000000000000000000000000000000001000,
+        0b0000000000000000000000000000001000000000000000000000000000001000,
     );
     position.insert(
         WHITE_KING,
@@ -283,7 +283,11 @@ fn main() {
         None
     }
 
-    fn is_square_obstructed(position: &HashMap<Piece, u64>, square: &u64, friendly_colour: &Colour) -> bool {
+    fn is_square_obstructed(
+        position: &HashMap<Piece, u64>,
+        square: &u64,
+        friendly_colour: &Colour,
+    ) -> bool {
         for (piece, bitboard) in position.iter() {
             if piece.colour != *friendly_colour {
                 continue;
@@ -295,22 +299,35 @@ fn main() {
         false
     }
 
-
-    enum BishopDirection {
+    enum StraightDirection {
+        North,
+        East,
+        South,
+        West,
         NorthEast,
         SouthEast,
         SouthWest,
-        NorthWest
+        NorthWest,
     }
-    fn generate_bishop_moves(position: &HashMap<Piece, u64>, square: &u64, friendly_colour: &Colour, moves: &mut u64) {
-        for direction in vec![BishopDirection::NorthEast, BishopDirection::SouthEast, BishopDirection::SouthWest, BishopDirection::NorthWest] {
+    fn generate_straight_moves(
+        directions: Vec<StraightDirection>,
+        position: &HashMap<Piece, u64>,
+        square: &u64,
+        friendly_colour: &Colour,
+        moves: &mut u64,
+    ) {
+        for direction in directions {
             // take first step here so we don't check the square the piece is actually on
             let mut mask = match direction {
-                    BishopDirection::NorthEast => square.clone() << 9,
-                    BishopDirection::SouthEast => square.clone() >> 9,
-                    BishopDirection::SouthWest => square.clone() >> 7,
-                    BishopDirection::NorthWest => square.clone() << 7
-                };
+                StraightDirection::North => square.clone() << 8,
+                StraightDirection::East => square.clone() >> 1,
+                StraightDirection::South => square.clone() >> 8,
+                StraightDirection::West => square.clone() << 1,
+                StraightDirection::NorthEast => square.clone() << 9,
+                StraightDirection::SouthEast => square.clone() >> 9,
+                StraightDirection::SouthWest => square.clone() >> 7,
+                StraightDirection::NorthWest => square.clone() << 7,
+            };
 
             let mut was_previous_capture = false;
             while {
@@ -322,10 +339,14 @@ fn main() {
                 let is_square_obstructed = is_square_obstructed(&position, &mask, &friendly_colour);
 
                 let at_edge = match direction {
-                    BishopDirection::NorthEast => is_on_rank_8 || is_on_file_h,
-                    BishopDirection::SouthEast => is_on_rank_1 || is_on_file_h,
-                    BishopDirection::SouthWest => is_on_rank_1 || is_on_file_a,
-                    BishopDirection::NorthWest => is_on_rank_8 || is_on_file_a
+                    StraightDirection::North => is_on_rank_8,
+                    StraightDirection::East => is_on_file_h,
+                    StraightDirection::South => is_on_rank_1,
+                    StraightDirection::West => is_on_file_a,
+                    StraightDirection::NorthEast => is_on_rank_8 || is_on_file_h,
+                    StraightDirection::SouthEast => is_on_rank_1 || is_on_file_h,
+                    StraightDirection::SouthWest => is_on_rank_1 || is_on_file_a,
+                    StraightDirection::NorthWest => is_on_rank_8 || is_on_file_a,
                 };
 
                 !at_edge && !is_square_obstructed && !was_previous_capture
@@ -335,23 +356,20 @@ fn main() {
                     was_previous_capture = friendly_colour != &target_piece.colour
                 }
                 match direction {
-                    BishopDirection::NorthEast => mask <<= 9,
-                    BishopDirection::SouthEast => mask >>= 9,
-                    BishopDirection::SouthWest => mask >>= 7,
-                    BishopDirection::NorthWest => mask <<= 7
+                    StraightDirection::North => mask <<= 8,
+                    StraightDirection::East => mask >>= 1,
+                    StraightDirection::South => mask >>= 8,
+                    StraightDirection::West => mask <<= 1,
+                    StraightDirection::NorthEast => mask <<= 9,
+                    StraightDirection::SouthEast => mask >>= 9,
+                    StraightDirection::SouthWest => mask >>= 7,
+                    StraightDirection::NorthWest => mask <<= 7,
                 };
             }
         }
     }
 
-    enum RookDirection {
-        North,
-        East,
-        South,
-        West
-    }
-
-    fn get_possible_moves(position: &HashMap<Piece, u64>, square: &u64) -> u64 {
+    fn generate_moves(position: &HashMap<Piece, u64>, square: &u64) -> u64 {
         let mut moves: u64 = 0b0;
 
         if let Some(piece) = get_piece_at_index(position, square) {
@@ -377,16 +395,56 @@ fn main() {
                 }
                 PieceType::Knight => {}
                 PieceType::Bishop => {
-                    generate_bishop_moves(position, square, &piece.colour, &mut moves);
+                    generate_straight_moves(
+                        vec![
+                            StraightDirection::NorthEast,
+                            StraightDirection::SouthEast,
+                            StraightDirection::SouthWest,
+                            StraightDirection::NorthWest,
+                        ],
+                        position,
+                        square,
+                        &piece.colour,
+                        &mut moves,
+                    );
                 }
-                PieceType::Rook => {}
-                PieceType::Queen => {}
+                PieceType::Rook => {
+                    generate_straight_moves(
+                        vec![
+                            StraightDirection::North,
+                            StraightDirection::East,
+                            StraightDirection::South,
+                            StraightDirection::West,
+                        ],
+                        position,
+                        square,
+                        &piece.colour,
+                        &mut moves,
+                    );
+                }
+                PieceType::Queen => {
+                    generate_straight_moves(
+                        vec![
+                            StraightDirection::North,
+                            StraightDirection::East,
+                            StraightDirection::South,
+                            StraightDirection::West,
+                            StraightDirection::NorthEast,
+                            StraightDirection::SouthEast,
+                            StraightDirection::SouthWest,
+                            StraightDirection::NorthWest,
+                        ],
+                        position,
+                        square,
+                        &piece.colour,
+                        &mut moves,
+                    );
+                }
                 PieceType::King => {}
             }
         }
         moves
     }
-
 
     // println!("moves: {:#064b}", moves);
 
@@ -407,7 +465,7 @@ fn main() {
             match algebraic_to_index(input.clone()) {
                 Ok(index) => {
                     let square: u64 = 1 << index;
-                    let moves: u64 = get_possible_moves(position, &square).clone();
+                    let moves: u64 = generate_moves(position, &square).clone();
                     let indicies = bit_scan(&moves);
                     for i in indicies {
                         let a = index_to_algebraic(&i).unwrap();
