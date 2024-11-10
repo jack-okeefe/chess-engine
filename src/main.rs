@@ -1,14 +1,17 @@
 use core::hash;
 use std::cmp;
 use std::collections::btree_map::Range;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fmt::Binary;
+use std::hash::Hash;
 use std::io::Write;
 use std::ops::Index;
+use std::str::SplitWhitespace;
 use std::string::ParseError;
 use std::{any::type_name, io};
-use std::collections::HashSet;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum PieceType {
     Pawn,
     Knight,
@@ -18,114 +21,107 @@ enum PieceType {
     King,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum Colour {
     White,
     Black,
 }
 
+// https://users.rust-lang.org/t/custom-struct-as-key-to-hashmap/21534
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct Piece {
     piece_type: PieceType,
     colour: Colour,
     str: &'static str,
 }
-struct Position {
-    white_pawn: u64,
-    white_knight: u64,
-    white_bishop: u64,
-    white_rook: u64,
-    white_queen: u64,
-    white_king: u64,
-    black_pawn: u64,
-    black_knight: u64,
-    black_bishop: u64,
-    black_rook: u64,
-    black_queen: u64,
-    black_king: u64,
-}
+
+// struct Position {
+//     white_pawn: u64,
+//     white_knight: u64,
+//     white_bishop: u64,
+//     white_rook: u64,
+//     white_queen: u64,
+//     white_king: u64,
+//     black_pawn: u64,
+//     black_knight: u64,
+//     black_bishop: u64,
+//     black_rook: u64,
+//     black_queen: u64,
+//     black_king: u64,
+// }
+
+const FILES: [char; 8] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+const RANKS: [char; 8] = ['1', '2', '3', '4', '5', '6', '7', '8'];
+const FILE_A: u64 = 0b0000000100000001000000010000000100000001000000010000000100000001;
+const FILE_H: u64 = 0b1000000010000000100000001000000010000000100000001000000010000000;
+const RANK_1: u64 = 0b0000000000000000000000000000000000000000000000000000000011111111;
+const RANK_8: u64 = 0b1111111100000000000000000000000000000000000000000000000000000000;
+
+const WHITE_PAWN: Piece = Piece {
+    piece_type: PieceType::Pawn,
+    colour: Colour::White,
+    str: "P",
+};
+const WHITE_KNIGHT: Piece = Piece {
+    piece_type: PieceType::Knight,
+    colour: Colour::White,
+    str: "N",
+};
+const WHITE_BISHOP: Piece = Piece {
+    piece_type: PieceType::Bishop,
+    colour: Colour::White,
+    str: "B",
+};
+const WHITE_ROOK: Piece = Piece {
+    piece_type: PieceType::Rook,
+    colour: Colour::White,
+    str: "R",
+};
+const WHITE_QUEEN: Piece = Piece {
+    piece_type: PieceType::Queen,
+    colour: Colour::White,
+    str: "Q",
+};
+const WHITE_KING: Piece = Piece {
+    piece_type: PieceType::King,
+    colour: Colour::White,
+    str: "K",
+};
+const BLACK_PAWN: Piece = Piece {
+    piece_type: PieceType::Pawn,
+    colour: Colour::Black,
+    str: "p",
+};
+const BLACK_KNIGHT: Piece = Piece {
+    piece_type: PieceType::Knight,
+    colour: Colour::Black,
+    str: "n",
+};
+const BLACK_BISHOP: Piece = Piece {
+    piece_type: PieceType::Bishop,
+    colour: Colour::Black,
+    str: "b",
+};
+const BLACK_ROOK: Piece = Piece {
+    piece_type: PieceType::Rook,
+    colour: Colour::Black,
+    str: "r",
+};
+const BLACK_QUEEN: Piece = Piece {
+    piece_type: PieceType::Queen,
+    colour: Colour::Black,
+    str: "q",
+};
+const BLACK_KING: Piece = Piece {
+    piece_type: PieceType::King,
+    colour: Colour::Black,
+    str: "k",
+};
 
 fn main() {
     env::set_var("RUST_BACKTRACE", "1");
 
-    const FILES: std::ops::RangeInclusive<char> = 'a'..='h';
-    const RANKS: std::ops::RangeInclusive<char> = '1'..='8';
-
-    let white_pawn: Piece = Piece {
-        piece_type: PieceType::Pawn,
-        colour: Colour::White,
-        str: "P",
-    };
-    let white_knight: Piece = Piece {
-        piece_type: PieceType::Knight,
-        colour: Colour::White,
-        str: "N",
-    };
-    let white_bishop: Piece = Piece {
-        piece_type: PieceType::Bishop,
-        colour: Colour::White,
-        str: "B",
-    };
-    let white_rook: Piece = Piece {
-        piece_type: PieceType::Rook,
-        colour: Colour::White,
-        str: "R",
-    };
-    let white_queen: Piece = Piece {
-        piece_type: PieceType::Queen,
-        colour: Colour::White,
-        str: "Q",
-    };
-    let white_king: Piece = Piece {
-        piece_type: PieceType::King,
-        colour: Colour::White,
-        str: "K",
-    };
-    let black_pawn: Piece = Piece {
-        piece_type: PieceType::Pawn,
-        colour: Colour::Black,
-        str: "p",
-    };
-    let black_knight: Piece = Piece {
-        piece_type: PieceType::Knight,
-        colour: Colour::Black,
-        str: "n",
-    };
-    let black_bishop: Piece = Piece {
-        piece_type: PieceType::Bishop,
-        colour: Colour::Black,
-        str: "b",
-    };
-    let black_rook: Piece = Piece {
-        piece_type: PieceType::Rook,
-        colour: Colour::Black,
-        str: "r",
-    };
-    let black_queen: Piece = Piece {
-        piece_type: PieceType::Queen,
-        colour: Colour::Black,
-        str: "q",
-    };
-    let black_king: Piece = Piece {
-        piece_type: PieceType::King,
-        colour: Colour::Black,
-        str: "k",
-    };
     // let pieces = vec![white_pawn, white_knight, white_bishop, white_rook, white_queen, white_king, black_pawn, black_knight, black_bishop, black_rook, black_queen, black_king];
-
-    let starting_position: Position = Position {
-        white_pawn: 0b0000000000000000000000000000000000000000000000001111111100000000,
-        white_knight: 0b0000000000000000000000000000000000000000000000000000000001000010,
-        white_bishop: 0b0000000000000000000000000000000000000000000000000000000000100100,
-        white_rook: 0b0000000000000000000000000000000000000000000000000000000010000001,
-        white_queen: 0b0000000000000000000000000000000000000000000000000000000000001000,
-        white_king: 0b0000000000000000000000000000000000000000000000000000000000010000,
-        black_pawn: 0b0000000011111111000000000000000000000000000000000000000000000000,
-        black_knight: 0b0100001000000000000000000000000000000000000000000000000000000000,
-        black_bishop: 0b0010010000000000000000000000000000000000000000000000000000000000,
-        black_rook: 0b1000000100000000000000000000000000000000000000000000000000000000,
-        black_queen: 0b0000100000000000000000000000000000000000000000000000000000000000,
-        black_king: 0b0001000000000000000000000000000000000000000000000000000000000000,
-    };
-    
 
     fn algebraic_to_index(algebraic: String) -> Result<usize, &'static str> {
         if algebraic.len() != 2 {
@@ -152,8 +148,25 @@ fn main() {
 
         Ok(index)
     }
+    fn index_to_algebraic(index: &usize) -> Result<String, &'static str> {
+        if *index > 63 {
+            return Err("Invalid index. Must be less than 64");
+        } else {
+            let file_index = *index % 8;
+            let file = FILES[file_index].to_string();
+            let rank = (*index / 8 + 1).to_string();
+            let algebraic = format!("{file}{rank}");
+            return Ok(algebraic);
+        }
+    }
 
-    fn display_board(board: [&str; 64]) {
+    fn print_board(position: &HashMap<Piece, u64>) {
+        let mut board = [" "; 64];
+
+        for (piece, bitboard) in position {
+            fill_board(&mut board, bitboard, piece);
+        }
+
         // clear terminal using special char
         // https://rosettacode.org/wiki/Terminal_control/Clear_the_screen#Rust
         print!("{}[2J", 27 as char);
@@ -165,7 +178,7 @@ fn main() {
         }
         println!();
 
-        for rank in RANKS.rev() {
+        for rank in RANKS.iter().rev() {
             print!("\n{rank}    ");
             for file in FILES {
                 let algebraic: String = format!("{}{}", file, rank);
@@ -176,44 +189,13 @@ fn main() {
         }
         println!();
         println!();
-
     }
 
-    // fn get_input(board: [&str; 64]) {
-    //     let mut input: String = String::new();
-
-    //     loop {
-    //         println!("Request a square");
-    //         input = String::new();
-
-    //         io::stdin()
-    //             .read_line(&mut input)
-    //             .expect("Failed to read input");
-    //         let input = input.trim().to_string();
-
-    //         println!("You wrote {input}");
-
-    //         match algebraic_to_index(input.clone()) {
-    //             Ok(index) => {
-    //                 display_board(board);
-    //                 println!("Piece at {} is {}", input, board[index]);
-    //                 break;
-    //             }
-    //             Err(e) => {
-    //                 display_board(board);
-    //                 println!("{e}");
-    //             }
-    //         }
-    //     }
-    // }
-
-    
-    fn bit_scan(bitboard: u64) -> HashSet<usize> {
+    fn bit_scan(bitboard: &u64) -> HashSet<usize> {
         let mut mask = bitboard.clone();
         let mut indicies = HashSet::new();
         let mut index: usize = 0;
         while mask > 0 {
-
             if mask.trailing_zeros() == 0 {
                 indicies.insert(index);
             }
@@ -223,31 +205,223 @@ fn main() {
         }
         indicies
     }
-    let mut board = [" "; 64];
 
-    fn fill_board(board: &mut [&str; 64], bitboard: u64, piece: Piece) {
+    fn fill_board(board: &mut [&str; 64], bitboard: &u64, piece: &Piece) {
         let indicies_to_fill = bit_scan(bitboard);
         for index in indicies_to_fill {
             board[index] = piece.str;
         }
-
     }
-    
-    fill_board(&mut board, starting_position.white_pawn, white_pawn);
-    fill_board(&mut board, starting_position.white_knight, white_knight);
-    fill_board(&mut board, starting_position.white_bishop, white_bishop);
-    fill_board(&mut board, starting_position.white_rook, white_rook);
-    fill_board(&mut board, starting_position.white_queen, white_queen);
-    fill_board(&mut board, starting_position.white_king, white_king);
-    fill_board(&mut board, starting_position.black_pawn, black_pawn);
-    fill_board(&mut board, starting_position.black_knight, black_knight);
-    fill_board(&mut board, starting_position.black_bishop, black_bishop);
-    fill_board(&mut board, starting_position.black_rook, black_rook);
-    fill_board(&mut board, starting_position.black_queen, black_queen);
-    fill_board(&mut board, starting_position.black_king, black_king);
-    display_board(board);
 
-    // get_input(board);
+    let mut position: HashMap<Piece, u64> = HashMap::new();
+    position.insert(
+        WHITE_PAWN,
+        0b0000000000000000000000000000000000000000000000001111111100000000,
+    );
+    position.insert(
+        WHITE_KNIGHT,
+        0b0000000000000000000000000000000000000000000000000000000001000010,
+    );
+    position.insert(
+        WHITE_BISHOP,
+        0b00000000000000000000000000000000000000000000000000000000000100100,
+    );
+    position.insert(
+        WHITE_ROOK,
+        0b0000000000000000000000000000000000000000000000000000000010000001,
+    );
+    position.insert(
+        WHITE_QUEEN,
+        0b0000000000000000000000000000000000000000000000000000000000001000,
+    );
+    position.insert(
+        WHITE_KING,
+        0b0000000000000000000000000000000000000000000000000000000000010000,
+    );
+    position.insert(
+        BLACK_PAWN,
+        0b0000000011111111000000000000000000000000000000000000000000000000,
+    );
+    position.insert(
+        BLACK_KNIGHT,
+        0b0100001000000000000000000000000000000000000000000000000000000000,
+    );
+    position.insert(
+        BLACK_BISHOP,
+        0b0010010000000000000000000000000000000000000000000000000000000000,
+    );
+    position.insert(
+        BLACK_ROOK,
+        0b1000000100000000000000000000000000000000000000000000000000000000,
+    );
+    position.insert(
+        BLACK_QUEEN,
+        0b0000100000000000000000000000000000000000000000000000000000000000,
+    );
+    position.insert(
+        BLACK_KING,
+        0b0001000000000000000000000000000000000000000000000000000000000000,
+    );
 
-    // find_piece(board, file, rank);
+    print_board(&position);
+
+    // let mut white_pawn_indicies = bit_scan(starting_position.white_pawn << 8);
+    // for index in white_pawn_indicies {
+    //     println!("{index}");
+    // }
+
+    fn index_to_bitboard(index: usize) -> u64 {
+        1 << index
+    }
+
+    fn get_piece_at_index(position: &HashMap<Piece, u64>, square: &u64) -> Option<Piece> {
+        for (piece, bitboard) in position {
+            if (bitboard & square) != 0 {
+                return Some(*piece);
+            }
+        }
+        None
+    }
+
+    fn is_square_obstructed(position: &HashMap<Piece, u64>, square: &u64, friendly_colour: &Colour) -> bool {
+        for (piece, bitboard) in position.iter() {
+            if piece.colour != *friendly_colour {
+                continue;
+            }
+            if bitboard & square != 0 {
+                return true;
+            }
+        }
+        false
+    }
+
+
+    enum BishopDirection {
+        NorthEast,
+        SouthEast,
+        SouthWest,
+        NorthWest
+    }
+    fn generate_bishop_moves(position: &HashMap<Piece, u64>, square: &u64, friendly_colour: &Colour, moves: &mut u64) {
+        for direction in vec![BishopDirection::NorthEast, BishopDirection::SouthEast, BishopDirection::SouthWest, BishopDirection::NorthWest] {
+            // take first step here so we don't check the square the piece is actually on
+            let mut mask = match direction {
+                    BishopDirection::NorthEast => square.clone() << 9,
+                    BishopDirection::SouthEast => square.clone() >> 9,
+                    BishopDirection::SouthWest => square.clone() >> 7,
+                    BishopDirection::NorthWest => square.clone() << 7
+                };
+
+            let mut was_previous_capture = false;
+            while {
+                let is_on_file_a = mask & FILE_A != 0;
+                let is_on_file_h = mask & FILE_H != 0;
+                let is_on_rank_1 = mask & RANK_1 != 0;
+                let is_on_rank_8 = mask & RANK_8 != 0;
+
+                let is_square_obstructed = is_square_obstructed(&position, &mask, &friendly_colour);
+
+                let at_edge = match direction {
+                    BishopDirection::NorthEast => is_on_rank_8 || is_on_file_h,
+                    BishopDirection::SouthEast => is_on_rank_1 || is_on_file_h,
+                    BishopDirection::SouthWest => is_on_rank_1 || is_on_file_a,
+                    BishopDirection::NorthWest => is_on_rank_8 || is_on_file_a
+                };
+
+                !at_edge && !is_square_obstructed && !was_previous_capture
+            } {
+                *moves |= mask;
+                if let Some(target_piece) = get_piece_at_index(position, &mask) {
+                    was_previous_capture = friendly_colour != &target_piece.colour
+                }
+                match direction {
+                    BishopDirection::NorthEast => mask <<= 9,
+                    BishopDirection::SouthEast => mask >>= 9,
+                    BishopDirection::SouthWest => mask >>= 7,
+                    BishopDirection::NorthWest => mask <<= 7
+                };
+            }
+        }
+    }
+
+    enum RookDirection {
+        North,
+        East,
+        South,
+        West
+    }
+
+    fn get_possible_moves(position: &HashMap<Piece, u64>, square: &u64) -> u64 {
+        let mut moves: u64 = 0b0;
+
+        if let Some(piece) = get_piece_at_index(position, square) {
+            match piece.piece_type {
+                PieceType::Pawn => {
+                    match piece.colour {
+                        Colour::White => {
+                            // add double push square
+                            if square.trailing_zeros() / 8 == 1 {
+                                moves |= square << 16;
+                            }
+                            // add single push square
+                            moves |= square << 8
+                        }
+                        Colour::Black => {
+                            // double push check
+                            if square.trailing_zeros() / 8 == 6 {
+                                moves |= square >> 16;
+                            }
+                            moves |= square >> 8
+                        }
+                    }
+                }
+                PieceType::Knight => {}
+                PieceType::Bishop => {
+                    generate_bishop_moves(position, square, &piece.colour, &mut moves);
+                }
+                PieceType::Rook => {}
+                PieceType::Queen => {}
+                PieceType::King => {}
+            }
+        }
+        moves
+    }
+
+
+    // println!("moves: {:#064b}", moves);
+
+    fn get_input(position: &HashMap<Piece, u64>) {
+        let mut input: String;
+
+        loop {
+            println!("Request a square");
+            input = String::new();
+
+            io::stdin()
+                .read_line(&mut input)
+                .expect("Failed to read input");
+            let input = input.trim().to_string();
+
+            println!("You wrote {input}");
+
+            match algebraic_to_index(input.clone()) {
+                Ok(index) => {
+                    let square: u64 = 1 << index;
+                    let moves: u64 = get_possible_moves(position, &square).clone();
+                    let indicies = bit_scan(&moves);
+                    for i in indicies {
+                        let a = index_to_algebraic(&i).unwrap();
+                        println!("{a}");
+                    }
+                    break;
+                }
+                Err(e) => {
+                    print_board(&position);
+                    println!("{e}");
+                }
+            }
+        }
+    }
+
+    get_input(&position);
 }
