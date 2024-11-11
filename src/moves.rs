@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
 use crate::pieces::{Colour, Piece, Type};
+use crate::position::{FILE_A, FILE_H, RANK_1, RANK_8};
+use crate::position::{get_piece_at_index};
 
 pub enum Direction {
     North,
@@ -13,19 +15,6 @@ pub enum Direction {
     NorthWest,
 }
 
-pub const FILE_A: u64 = 0b0000000100000001000000010000000100000001000000010000000100000001;
-pub const FILE_H: u64 = 0b1000000010000000100000001000000010000000100000001000000010000000;
-pub const RANK_1: u64 = 0b0000000000000000000000000000000000000000000000000000000011111111;
-pub const RANK_8: u64 = 0b1111111100000000000000000000000000000000000000000000000000000000;
-
-pub fn get_piece_at_index(position: &HashMap<Piece, u64>, square: &u64) -> Option<Piece> {
-    for (piece, bitboard) in position {
-        if (bitboard & square) != 0 {
-            return Some(*piece);
-        }
-    }
-    None
-}
 
 pub fn check_if_square_obstructed(
     position: &HashMap<Piece, u64>,
