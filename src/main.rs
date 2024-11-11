@@ -214,6 +214,7 @@ fn main() {
     }
 
     let mut position: HashMap<Piece, u64> = HashMap::new();
+    // 0b0000000000000000000000000000000000000000000000000000000000000000
     position.insert(
         WHITE_PAWN,
         0b0000000000000000000000000000000000000000000000001111111100000000,
@@ -224,7 +225,7 @@ fn main() {
     );
     position.insert(
         WHITE_BISHOP,
-        0b00000000000000000000000000000000000000000000000000000000000100100,
+        0b0000000000000000000000000000001000000000000000000000000000100100,
     );
     position.insert(
         WHITE_ROOK,
@@ -232,7 +233,7 @@ fn main() {
     );
     position.insert(
         WHITE_QUEEN,
-        0b0000000000000000000000000000001000000000000000000000000000001000,
+        0b00000000000000000000000000010000000000000000000000000000000001000,
     );
     position.insert(
         WHITE_KING,
@@ -283,7 +284,7 @@ fn main() {
         None
     }
 
-    fn is_square_obstructed(
+    fn check_if_square_obstructed(
         position: &HashMap<Piece, u64>,
         square: &u64,
         friendly_colour: &Colour,
@@ -298,8 +299,41 @@ fn main() {
         }
         false
     }
+    fn is_at_edge_in_direction(direction: &Direction, square: &u64) -> bool {
+        let is_on_file_a = square & FILE_A != 0;
+        let is_on_file_h = square & FILE_H != 0;
+        let is_on_rank_1 = square & RANK_1 != 0;
+        let is_on_rank_8 = square & RANK_8 != 0;
 
-    enum StraightDirection {
+        let is_at_edge = match direction {
+            Direction::North => is_on_rank_8,
+            Direction::East => is_on_file_h,
+            Direction::South => is_on_rank_1,
+            Direction::West => is_on_file_a,
+            Direction::NorthEast => is_on_rank_8 || is_on_file_h,
+            Direction::SouthEast => is_on_rank_1 || is_on_file_h,
+            Direction::SouthWest => is_on_rank_1 || is_on_file_a,
+            Direction::NorthWest => is_on_rank_8 || is_on_file_a,
+        };
+
+        return is_at_edge
+    }
+
+    fn step_in_direction(direction: &Direction, square: &u64) -> u64 {
+        let mask = square.clone();
+        match direction {
+            Direction::North => return mask << 8,
+            Direction::East => return mask >> 1,
+            Direction::South => return mask >> 8,
+            Direction::West => return mask << 1,
+            Direction::NorthEast => return mask << 9,
+            Direction::SouthEast => return mask >> 9,
+            Direction::SouthWest => return mask >> 7,
+            Direction::NorthWest => return mask << 7,
+        };
+    }
+
+    enum Direction {
         North,
         East,
         South,
@@ -310,61 +344,42 @@ fn main() {
         NorthWest,
     }
     fn generate_straight_moves(
-        directions: Vec<StraightDirection>,
+        directions: Vec<Direction>,
+        travel_limit: u8,
         position: &HashMap<Piece, u64>,
-        square: &u64,
+        root_square: &u64,
         friendly_colour: &Colour,
         moves: &mut u64,
     ) {
         for direction in directions {
-            // take first step here so we don't check the square the piece is actually on
-            let mut mask = match direction {
-                StraightDirection::North => square.clone() << 8,
-                StraightDirection::East => square.clone() >> 1,
-                StraightDirection::South => square.clone() >> 8,
-                StraightDirection::West => square.clone() << 1,
-                StraightDirection::NorthEast => square.clone() << 9,
-                StraightDirection::SouthEast => square.clone() >> 9,
-                StraightDirection::SouthWest => square.clone() >> 7,
-                StraightDirection::NorthWest => square.clone() << 7,
-            };
-
+            let mut current_square = root_square.clone();
+            let mut travel_distance: u8 = 0;
             let mut was_previous_capture = false;
+            let mut was_previous_edge = false;
             while {
-                let is_on_file_a = mask & FILE_A != 0;
-                let is_on_file_h = mask & FILE_H != 0;
-                let is_on_rank_1 = mask & RANK_1 != 0;
-                let is_on_rank_8 = mask & RANK_8 != 0;
+                // don't check for obstructed square on own square
+                let mut is_square_obstructed = false;
+                if travel_distance != 0 {
+                    is_square_obstructed =
+                        check_if_square_obstructed(&position, &current_square, &friendly_colour);
+                }
 
-                let is_square_obstructed = is_square_obstructed(&position, &mask, &friendly_colour);
+                let at_travel_limit = travel_distance >= travel_limit;
 
-                let at_edge = match direction {
-                    StraightDirection::North => is_on_rank_8,
-                    StraightDirection::East => is_on_file_h,
-                    StraightDirection::South => is_on_rank_1,
-                    StraightDirection::West => is_on_file_a,
-                    StraightDirection::NorthEast => is_on_rank_8 || is_on_file_h,
-                    StraightDirection::SouthEast => is_on_rank_1 || is_on_file_h,
-                    StraightDirection::SouthWest => is_on_rank_1 || is_on_file_a,
-                    StraightDirection::NorthWest => is_on_rank_8 || is_on_file_a,
-                };
-
-                !at_edge && !is_square_obstructed && !was_previous_capture
+                !is_square_obstructed && !at_travel_limit && !was_previous_capture && !was_previous_edge
             } {
-                *moves |= mask;
-                if let Some(target_piece) = get_piece_at_index(position, &mask) {
+                // don't want to allow moving to the same square,
+                // but also need to start algorithm here in case the
+                // root square is on an edge
+                if current_square != *root_square {
+                    *moves |= current_square;
+                }
+                if let Some(target_piece) = get_piece_at_index(position, &current_square) {
                     was_previous_capture = friendly_colour != &target_piece.colour
                 }
-                match direction {
-                    StraightDirection::North => mask <<= 8,
-                    StraightDirection::East => mask >>= 1,
-                    StraightDirection::South => mask >>= 8,
-                    StraightDirection::West => mask <<= 1,
-                    StraightDirection::NorthEast => mask <<= 9,
-                    StraightDirection::SouthEast => mask >>= 9,
-                    StraightDirection::SouthWest => mask >>= 7,
-                    StraightDirection::NorthWest => mask <<= 7,
-                };
+                was_previous_edge = is_at_edge_in_direction(&direction, &current_square);
+                current_square = step_in_direction(&direction, &current_square);
+                travel_distance += 1;
             }
         }
     }
@@ -397,11 +412,12 @@ fn main() {
                 PieceType::Bishop => {
                     generate_straight_moves(
                         vec![
-                            StraightDirection::NorthEast,
-                            StraightDirection::SouthEast,
-                            StraightDirection::SouthWest,
-                            StraightDirection::NorthWest,
+                            Direction::NorthEast,
+                            Direction::SouthEast,
+                            Direction::SouthWest,
+                            Direction::NorthWest,
                         ],
+                        7,
                         position,
                         square,
                         &piece.colour,
@@ -411,11 +427,12 @@ fn main() {
                 PieceType::Rook => {
                     generate_straight_moves(
                         vec![
-                            StraightDirection::North,
-                            StraightDirection::East,
-                            StraightDirection::South,
-                            StraightDirection::West,
+                            Direction::North,
+                            Direction::East,
+                            Direction::South,
+                            Direction::West,
                         ],
+                        7,
                         position,
                         square,
                         &piece.colour,
@@ -425,15 +442,16 @@ fn main() {
                 PieceType::Queen => {
                     generate_straight_moves(
                         vec![
-                            StraightDirection::North,
-                            StraightDirection::East,
-                            StraightDirection::South,
-                            StraightDirection::West,
-                            StraightDirection::NorthEast,
-                            StraightDirection::SouthEast,
-                            StraightDirection::SouthWest,
-                            StraightDirection::NorthWest,
+                            Direction::North,
+                            Direction::East,
+                            Direction::South,
+                            Direction::West,
+                            Direction::NorthEast,
+                            Direction::SouthEast,
+                            Direction::SouthWest,
+                            Direction::NorthWest,
                         ],
+                        7,
                         position,
                         square,
                         &piece.colour,
