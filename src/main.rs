@@ -160,8 +160,12 @@ fn main() {
         }
     }
 
-    fn print_board(position: &HashMap<Piece, u64>) {
+    fn print_board(position: &HashMap<Piece, u64>, highlighted_indicies: Option<HashSet<usize>>) {
         let mut board = [" "; 64];
+        let highlighted = match highlighted_indicies {
+            Some(indicies) => indicies,
+            None => HashSet::new(),
+        };
 
         for (piece, bitboard) in position {
             fill_board(&mut board, bitboard, piece);
@@ -184,7 +188,11 @@ fn main() {
                 let algebraic: String = format!("{}{}", file, rank);
                 let index = algebraic_to_index(algebraic).unwrap();
                 let piece = board[index];
-                print!("[{piece}]");
+                if highlighted.contains(&index) {
+                    print!("\x1b[93m[{piece}]\x1b[0m");
+                } else {
+                    print!("[{piece}]");
+                }
             }
         }
         println!();
@@ -225,7 +233,7 @@ fn main() {
     );
     position.insert(
         WHITE_BISHOP,
-        0b0000000000000000000000000000001000000000000000000000000000100100,
+        0b0000000000000000000000000000000000000000000000000000000000100100,
     );
     position.insert(
         WHITE_ROOK,
@@ -233,7 +241,7 @@ fn main() {
     );
     position.insert(
         WHITE_QUEEN,
-        0b00000000000000000000000000010000000000000000000000000000000001000,
+        0b0000000000000000000000000000010000000000000000000000000000001000,
     );
     position.insert(
         WHITE_KING,
@@ -264,7 +272,7 @@ fn main() {
         0b0001000000000000000000000000000000000000000000000000000000000000,
     );
 
-    print_board(&position);
+    print_board(&position, None);
 
     // let mut white_pawn_indicies = bit_scan(starting_position.white_pawn << 8);
     // for index in white_pawn_indicies {
@@ -316,16 +324,16 @@ fn main() {
             Direction::NorthWest => is_on_rank_8 || is_on_file_a,
         };
 
-        return is_at_edge
+        return is_at_edge;
     }
 
     fn step_in_direction(direction: &Direction, square: &u64) -> u64 {
         let mask = square.clone();
         match direction {
             Direction::North => return mask << 8,
-            Direction::East => return mask >> 1,
+            Direction::East => return mask << 1,
             Direction::South => return mask >> 8,
-            Direction::West => return mask << 1,
+            Direction::West => return mask >> 1,
             Direction::NorthEast => return mask << 9,
             Direction::SouthEast => return mask >> 9,
             Direction::SouthWest => return mask >> 7,
@@ -366,7 +374,10 @@ fn main() {
 
                 let at_travel_limit = travel_distance >= travel_limit;
 
-                !is_square_obstructed && !at_travel_limit && !was_previous_capture && !was_previous_edge
+                !is_square_obstructed
+                    && !at_travel_limit
+                    && !was_previous_capture
+                    && !was_previous_edge
             } {
                 // don't want to allow moving to the same square,
                 // but also need to start algorithm here in case the
@@ -485,14 +496,16 @@ fn main() {
                     let square: u64 = 1 << index;
                     let moves: u64 = generate_moves(position, &square).clone();
                     let indicies = bit_scan(&moves);
-                    for i in indicies {
-                        let a = index_to_algebraic(&i).unwrap();
-                        println!("{a}");
+                    print_board(position, Some(indicies.clone()));
+                    for i in indicies.clone() {
+                        let algebraic = index_to_algebraic(&i).unwrap();
+                        print!("{algebraic}, ")
                     }
+                    println!();
                     break;
                 }
                 Err(e) => {
-                    print_board(&position);
+                    print_board(&position, None);
                     println!("{e}");
                 }
             }
