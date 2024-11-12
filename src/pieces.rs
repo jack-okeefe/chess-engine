@@ -1,3 +1,5 @@
+use std::ops::Not;
+
 // #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Class {
     Pawn,
@@ -14,6 +16,26 @@ pub enum Colour {
     Black,
 }
 
+impl Not for Colour {
+    type Output = Colour;
+    fn not(self) -> Colour {
+        match self {
+            Colour::White => Colour::Black,
+            Colour::Black => Colour::White,
+        }
+    }
+}
+
+impl Not for &Colour {
+    type Output = Colour;
+    fn not(self) -> Colour {
+        match self {
+            Colour::White => Colour::Black,
+            Colour::Black => Colour::White,
+        }
+    }
+}
+
 pub enum Piece {
     WhitePawn,
     WhiteKnight,
@@ -25,7 +47,7 @@ pub enum Piece {
     BlackKnight,
     BlackBishop,
     BlackRook,
-    BlackQueen, 
+    BlackQueen,
     BlackKing,
 }
 
@@ -42,7 +64,7 @@ impl Piece {
             Piece::BlackKnight,
             Piece::BlackBishop,
             Piece::BlackRook,
-            Piece::BlackQueen, 
+            Piece::BlackQueen,
             Piece::BlackKing,
         ]
     }
@@ -94,7 +116,6 @@ impl Piece {
             Piece::BlackQueen => Colour::Black,
             Piece::BlackKing => Colour::Black,
         }
-
     }
 }
 

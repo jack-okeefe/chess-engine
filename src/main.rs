@@ -56,7 +56,7 @@ fn main() {
 
     let mut position = get_starting_position();
 
-    let square = &index_to_bitboard(algebraic_to_index("e5".to_string()).unwrap());
+    let square = &index_to_bitboard(algebraic_to_index("e6".to_string()).unwrap());
     position.insert_piece_at_square(&Piece::WhitePawn, square);
 
     print_board(&position, None);
