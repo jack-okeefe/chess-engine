@@ -1,19 +1,21 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashSet};
 
 use crate::pieces::Piece;
+use crate::position::Position;
 use crate::utils::{algebraic_to_index, bit_scan};
 
 pub const FILES: [char; 8] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 pub const RANKS: [char; 8] = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
-pub fn print_board(position: &HashMap<Piece, u64>, highlighted_indicies: Option<HashSet<usize>>) {
+pub fn print_board(position: &Position, highlighted_indicies: Option<HashSet<usize>>) {
     let mut board = [" "; 64];
     let highlighted = match highlighted_indicies {
         Some(indicies) => indicies,
         None => HashSet::new(),
     };
 
-    for (piece, bitboard) in position {
+    for piece in Piece::iter() {
+        let bitboard = &position.get_bitboard(piece);
         fill_board(&mut board, bitboard, piece);
     }
 
@@ -48,7 +50,7 @@ pub fn print_board(position: &HashMap<Piece, u64>, highlighted_indicies: Option<
 pub fn fill_board(board: &mut [&str; 64], bitboard: &u64, piece: &Piece) {
     let indicies_to_fill = bit_scan(bitboard);
     for index in indicies_to_fill {
-        board[index] = piece.str;
+        board[index] = piece.str();
     }
 }
 

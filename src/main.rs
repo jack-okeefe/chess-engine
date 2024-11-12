@@ -5,17 +5,18 @@ use std::io;
 mod board;
 mod moves;
 mod pieces;
-mod utils;
 mod position;
+mod utils;
 
 use board::print_board;
 use moves::generate_moves;
 use pieces::Piece;
-
 use position::get_starting_position;
+use position::Position;
+use utils::index_to_bitboard;
 use utils::{algebraic_to_index, bit_scan, index_to_algebraic};
 
-pub fn get_input(position: &HashMap<Piece, u64>) {
+pub fn get_input(position: &Position) {
     let mut input: String;
 
     loop {
@@ -43,7 +44,7 @@ pub fn get_input(position: &HashMap<Piece, u64>) {
                 break;
             }
             Err(e) => {
-                print_board(&position, None);
+                print_board(position, None);
                 println!("{e}");
             }
         }
@@ -55,9 +56,9 @@ fn main() {
 
     let mut position = get_starting_position();
 
+    let square = &index_to_bitboard(algebraic_to_index("e5".to_string()).unwrap());
+    position.insert_piece_at_square(&Piece::WhitePawn, square);
+
     print_board(&position, None);
-
-    // println!("moves: {:#064b}", moves);
-
     get_input(&position);
 }

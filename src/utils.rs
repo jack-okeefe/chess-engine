@@ -41,6 +41,10 @@ pub fn index_to_algebraic(index: &usize) -> Result<String, &'static str> {
     }
 }
 
+pub fn index_to_bitboard(index: usize) -> u64 {
+    1 << index
+}
+
 pub fn bit_scan(bitboard: &u64) -> HashSet<usize> {
     let mut mask = bitboard.clone();
     let mut indicies = HashSet::new();
@@ -54,8 +58,4 @@ pub fn bit_scan(bitboard: &u64) -> HashSet<usize> {
         index += shift_by as usize;
     }
     indicies
-}
-
-pub fn index_to_bitboard(index: usize) -> u64 {
-    1 << index
 }
