@@ -67,7 +67,7 @@ pub fn step_in_direction(direction: &Direction, square: &u64) -> u64 {
     };
 }
 
-pub fn generate_straight_moves(
+pub fn generate_sliding_moves(
     moves: &mut u64,
     directions: Vec<Direction>,
     travel_limit: u8,
@@ -116,6 +116,9 @@ enum PawnAttackDirection {
     West,
 }
 
+// TODO: D.R.Y. in the code for calculating pawn pushes
+// fn generate_pawn_push()
+
 fn generate_pawn_attacks(
     root_square: &u64,
     position: &Position,
@@ -142,7 +145,7 @@ pub fn generate_moves(position: &Position, square: &u64) -> u64 {
                     Colour::Black => square >> 8,
                 };
                 first_push &= !position.get_occupancy();
-                let second_push: u64;
+
                 let pawn_on_home_row = match piece.colour() {
                     Colour::White => square & RANK_2 != 0,
                     Colour::Black => square & RANK_7 != 0,
@@ -157,21 +160,10 @@ pub fn generate_moves(position: &Position, square: &u64) -> u64 {
                 }
                 moves |= first_push | second_push;
 
-                let pawn_east_attacks = generate_pawn_attacks(
-                    square,
-                    position,
-                    &PawnAttackDirection::East,
-                    &piece.colour(),
-                );
-                moves |= pawn_east_attacks;
-
-                let pawn_west_attacks = generate_pawn_attacks(
-                    square,
-                    position,
-                    &PawnAttackDirection::West,
-                    &piece.colour(),
-                );
-                moves |= pawn_west_attacks;
+                for attack_direction in [PawnAttackDirection::East, PawnAttackDirection::West] {
+                    moves |=
+                        generate_pawn_attacks(square, position, &attack_direction, &piece.colour());
+                }
             }
             Class::Knight => {
                 // NorthNorthEast --> NorthNorthWest
@@ -188,7 +180,7 @@ pub fn generate_moves(position: &Position, square: &u64) -> u64 {
                 moves &= !occupied_squares;
             }
             Class::Bishop => {
-                generate_straight_moves(
+                generate_sliding_moves(
                     &mut moves,
                     vec![
                         Direction::NorthEast,
@@ -203,7 +195,7 @@ pub fn generate_moves(position: &Position, square: &u64) -> u64 {
                 );
             }
             Class::Rook => {
-                generate_straight_moves(
+                generate_sliding_moves(
                     &mut moves,
                     vec![
                         Direction::North,
@@ -218,7 +210,7 @@ pub fn generate_moves(position: &Position, square: &u64) -> u64 {
                 );
             }
             Class::Queen => {
-                generate_straight_moves(
+                generate_sliding_moves(
                     &mut moves,
                     vec![
                         Direction::North,
@@ -237,23 +229,18 @@ pub fn generate_moves(position: &Position, square: &u64) -> u64 {
                 );
             }
             Class::King => {
-                generate_straight_moves(
-                    &mut moves,
-                    vec![
-                        Direction::North,
-                        Direction::East,
-                        Direction::South,
-                        Direction::West,
-                        Direction::NorthEast,
-                        Direction::SouthEast,
-                        Direction::SouthWest,
-                        Direction::NorthWest,
-                    ],
-                    1,
-                    position,
-                    square,
-                    &piece.colour(),
-                );
+                // include root_square so we can calc directly north and south squares
+                moves = *square;
+                let east: u64 = (square & !FILE_H) << 1;
+                let west: u64 = (square & !FILE_A) >> 1;
+                moves |= east | west;
+                let north_bloc = moves << 8;
+                let south_bloc = moves >> 8;
+                moves |= north_bloc | south_bloc;
+
+                // removing occupied squares will remove root_square
+                let occupied_squares = position.get_colour_occupancy(&piece.colour());
+                moves &= !occupied_squares;
             }
         }
     }

@@ -15,6 +15,7 @@ pub struct Position {
     black_rook: u64,
     black_queen: u64,
     black_king: u64,
+    en_passant_square: u64,
 }
 
 impl Position {
@@ -133,6 +134,7 @@ pub fn get_starting_position() -> Position {
         black_rook: 0b1000000100000000000000000000000000000000000000000000000000000000,
         black_queen: 0b0000100000000000000000000000000000000000000000000000000000000000,
         black_king: 0b0001000000000000000000000000000000000000000000000000000000000000,
+        en_passant_square: 0b0,
     };
     starting_position
 }
