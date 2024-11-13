@@ -14,8 +14,7 @@ pub struct Position {
     pub black_queen: u64,
     pub black_king: u64,
     pub turn: Colour,
-    pub last_moved_from_square: u64,
-    pub last_moved_to_square: u64,
+    pub last_moved_squares: u64,
     pub en_passant_square: u64,
 }
 
@@ -91,7 +90,18 @@ impl Position {
         }
     }
 
-    pub fn get_piece_at_index(&self, square: &u64) -> Option<&Piece> {
+    pub fn get_piece_with_colour_at(&self, square: &u64, colour: &Colour) -> Option<&Piece> {
+        for piece in Piece::iter() {
+            let has_piece = self.get_bitboard(piece) & square != 0;
+            let is_of_friendly_colour = self.get_bitboard(piece) & self.get_colour_occupancy(colour) != 0;
+            if has_piece && is_of_friendly_colour {
+                return Some(piece)
+            }
+        }
+        None
+    }
+
+    pub fn get_piece_at(&self, square: &u64) -> Option<&Piece> {
         for piece in Piece::iter() {
             if self.get_bitboard(piece) & square != 0 {
                 return Some(piece)
@@ -107,8 +117,7 @@ impl Position {
 
     pub fn move_piece(&mut self, origin_square: &u64, destination_square: &u64) {
         for piece in Piece::iter() {
-            self.last_moved_from_square = *origin_square;
-            self.last_moved_to_square = *destination_square;
+            self.last_moved_squares = *origin_square | *destination_square;
 
             // remove taken piece from board
             *self.get_bitboard_mut(piece) &= !destination_square;
@@ -135,6 +144,8 @@ pub const RANK_1: u64 = 0b000000000000000000000000000000000000000000000000000000
 pub const RANK_2: u64 = 0b0000000000000000000000000000000000000000000000001111111100000000;
 pub const RANK_7: u64 = 0b0000000011111111000000000000000000000000000000000000000000000000;
 pub const RANK_8: u64 = 0b1111111100000000000000000000000000000000000000000000000000000000;
+pub const DARK_SQUARES: u64 = 0b0101010110101010010101011010101001010101101010100101010110101010;
+pub const LIGHT_SQUARES: u64 = 0b1010101001010101101010100101010110101010010101011010101001010101;
 
 
 pub fn get_starting_position() -> Position {
@@ -152,8 +163,7 @@ pub fn get_starting_position() -> Position {
         black_queen: 0b0000100000000000000000000000000000000000000000000000000000000000,
         black_king: 0b0001000000000000000000000000000000000000000000000000000000000000,
         turn: Colour::White,
-        last_moved_from_square: 0b0,
-        last_moved_to_square: 0b0,
+        last_moved_squares: 0b0,
         en_passant_square: 0b0,
     };
     starting_position

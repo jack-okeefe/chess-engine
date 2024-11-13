@@ -61,8 +61,8 @@ pub fn step_in_direction(direction: &Direction, square: &u64) -> u64 {
         Direction::South => return mask >> 8,
         Direction::West => return mask >> 1,
         Direction::NorthEast => return mask << 9,
-        Direction::SouthEast => return mask >> 9,
-        Direction::SouthWest => return mask >> 7,
+        Direction::SouthEast => return mask >> 7,
+        Direction::SouthWest => return mask >> 9,
         Direction::NorthWest => return mask << 7,
     };
 }
@@ -101,7 +101,7 @@ pub fn generate_sliding_moves(
             if current_square != *root_square {
                 *moves |= current_square;
             }
-            if let Some(target_piece) = position.get_piece_at_index(&current_square) {
+            if let Some(target_piece) = position.get_piece_at(&current_square) {
                 was_previous_capture = friendly_colour != &target_piece.colour()
             }
             was_previous_edge = is_at_edge_in_direction(&direction, &current_square);
@@ -137,7 +137,7 @@ fn generate_pawn_attacks(
 pub fn generate_moves(position: &Position, square: &u64) -> u64 {
     let mut moves: u64 = 0b0;
 
-    if let Some(piece) = position.get_piece_at_index(square) {
+    if let Some(piece) = position.get_piece_at(square) {
         match piece.class() {
             Class::Pawn => {
                 let mut first_push: u64 = match piece.colour() {

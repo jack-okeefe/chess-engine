@@ -17,7 +17,6 @@ enum SquareShade {
 }
 enum SquareHighlight {
     Selected,
-    LastMoved,
     Default,
 }
 
@@ -32,12 +31,9 @@ fn determine_square_shade(square: &u64) -> SquareShade {
 fn determine_square_highlight(
     square: &u64,
     selected_square: &u64,
-    last_moved_squares: &u64,
 ) -> SquareHighlight {
     if square & selected_square != 0 {
         SquareHighlight::Selected
-    } else if square & last_moved_squares != 0 {
-        SquareHighlight::LastMoved
     } else {
         SquareHighlight::Default
     }
@@ -46,17 +42,14 @@ fn determine_square_highlight(
 fn determine_square_colour(
     square: &u64,
     selected_square: &u64,
-    last_moved_squares: &u64,
 ) -> &'static str {
     let square_highlight: SquareHighlight =
-        determine_square_highlight(square, selected_square, last_moved_squares);
+        determine_square_highlight(square, selected_square);
     let square_shade: SquareShade = determine_square_shade(square);
 
     match (square_highlight, square_shade) {
         (SquareHighlight::Selected, SquareShade::Dark) => "\x1b[48;2;100;110;64m",
         (SquareHighlight::Selected, SquareShade::Light) => "\x1b[48;2;130;151;105m",
-        (SquareHighlight::LastMoved, SquareShade::Dark) => "\x1b[48;2;170;162;58m",
-        (SquareHighlight::LastMoved, SquareShade::Light) => "\x1b[48;2;205;210;106m",
         (SquareHighlight::Default, SquareShade::Dark) => "\x1b[48;2;181;136;99m",
         (SquareHighlight::Default, SquareShade::Light) => "\x1b[48;2;240;217;181m",
     }
@@ -67,12 +60,13 @@ fn determine_piece_str(piece_str: &str, square: &u64, move_squares: &u64) -> Str
     let is_piece_on_square = piece_str != " ";
 
     match (is_a_move_square, is_piece_on_square) {
-        (true, true) => format!("\x1b[38;2;100;110;64m[{piece_str}]\x1b[0m"),
+        (true, true) => format!("\x1b[38;2;100;110;64m({piece_str})\x1b[0m"),
         (true, false) => "\x1b[38;2;100;110;64m ● \x1b[0m".to_string(),
         (false, true) => format!(" {piece_str} "),
         (false, false) => "   ".to_string(),
     }
 }
+
 
 pub fn print_board(position: &Position, selected_square: &u64, move_squares: &u64) {
     let mut board = [" "; 64];
@@ -105,11 +99,8 @@ pub fn print_board(position: &Position, selected_square: &u64, move_squares: &u6
             // https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
             let ansi_closing = "\x1b[0m";
 
-            let bg_colour_ansi = determine_square_colour(
-                &current_square,
-                selected_square,
-                &position.last_moved_squares,
-            );
+            let bg_colour_ansi =
+                determine_square_colour(&current_square, selected_square);
             let piece_str = determine_piece_str(board[index], &current_square, move_squares);
 
             let display_string = format!("{bg_colour_ansi}{piece_str}{ansi_closing}");
@@ -149,7 +140,7 @@ pub fn ask_for_piece_selection(position: &mut Position) {
         let input = get_input("Select a piece to move");
 
         match algebraic_to_index(&input) {
-            Ok(index) => match position.get_piece_with_colour_at(&index_to_bitboard(&index), &position.turn) {
+            Ok(index) => match position.get_piece_at_index(&index_to_bitboard(&index)) {
                 Some(piece) => {
                     let square: u64 = 1 << index;
                     let moves: u64 = generate_moves(position, &square).clone();
