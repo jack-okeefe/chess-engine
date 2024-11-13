@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 use crate::board::{FILES, RANKS};
 
-pub fn algebraic_to_index(algebraic: String) -> Result<usize, &'static str> {
+pub fn algebraic_to_index(algebraic: &String) -> Result<usize, &'static str> {
     if algebraic.len() != 2 {
         return Err("Input must be exactly 2 characters long.");
     }
@@ -41,7 +41,7 @@ pub fn index_to_algebraic(index: &usize) -> Result<String, &'static str> {
     }
 }
 
-pub fn index_to_bitboard(index: usize) -> u64 {
+pub fn index_to_bitboard(index: &usize) -> u64 {
     1 << index
 }
 

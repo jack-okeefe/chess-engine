@@ -1,20 +1,21 @@
 use std::collections::HashSet;
+use std::hash::Hash;
 use std::io;
 
 use crate::move_generation::generate_moves;
-use crate::pieces::Piece;
+use crate::pieces::{Colour, Piece};
 use crate::position::Position;
-use crate::utils::{algebraic_to_index, bit_scan, index_to_algebraic};
+use crate::utils::{algebraic_to_index, bit_scan, index_to_bitboard};
 
 pub const FILES: [char; 8] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 pub const RANKS: [char; 8] = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
-pub fn print_board(position: &Position, highlighted_indicies: Option<HashSet<usize>>) {
+pub fn print_board(
+    position: &Position,
+    red_squares: &u64,
+    yellow_squares: &u64,
+) {
     let mut board = [" "; 64];
-    let highlighted = match highlighted_indicies {
-        Some(indicies) => indicies,
-        None => HashSet::new(),
-    };
 
     for piece in Piece::iter() {
         let bitboard = &position.get_bitboard(piece);
@@ -36,16 +37,39 @@ pub fn print_board(position: &Position, highlighted_indicies: Option<HashSet<usi
         print!("\n{rank}    ");
         for file in FILES {
             let algebraic: String = format!("{}{}", file, rank);
-            let index = algebraic_to_index(algebraic).unwrap();
+            let index = algebraic_to_index(&algebraic).unwrap();
+            let square = index_to_bitboard(&index);
             let piece = board[index];
-            if highlighted.contains(&index) {
-                print!("\x1b[93m[{piece}]\x1b[0m");
+
+            // second answer to this s/o
+            // https://stackoverflow.com/questions/69981449/how-do-i-print-colored-text-to-the-terminal-in-rust
+            // https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
+            let ansi_closing = "\x1b[0m";
+            let bg_colour_ansi = if square & red_squares == square {
+                // accent
+                "\x1b[48;2;0;68;116m"
+            } else if square & yellow_squares == square {
+                // highlight
+                "\x1b[48;2;242;202;92m"
+            } else if (index / 8 + index) % 2 == 0 {
+                // dark square default
+                "\x1b[48;2;248;231;187m"
             } else {
-                print!("[{piece}]");
-            }
+                // light square default
+                "\x1b[48;2;251;245;222m"
+            };
+
+            let display_string = format!("{bg_colour_ansi} {piece} {ansi_closing}");
+            print!("{}", display_string);
         }
     }
     println!();
+    println!();
+    let to_move = match position.turn {
+        Colour::White => "WHITE",
+        Colour::Black => "BLACK",
+    };
+    println!("           {to_move} TO MOVE");
     println!();
 }
 
@@ -56,40 +80,79 @@ pub fn fill_board(board: &mut [&str; 64], bitboard: &u64, piece: &Piece) {
     }
 }
 
-pub fn get_input(position: &Position) {
+pub fn get_input(prompt: &str) -> String {
     let mut input: String;
+    println!("{}", prompt);
+    input = String::new();
 
+    io::stdin()
+        .read_line(&mut input)
+        .expect("Failed to read input");
+    input.trim().to_string()
+}
+
+pub fn ask_for_piece_selection(position: &mut Position) {
     loop {
-        println!("Request a square");
-        input = String::new();
+        let input = get_input("Select a piece to move");
 
-        io::stdin()
-            .read_line(&mut input)
-            .expect("Failed to read input");
-        let input = input.trim().to_string();
+        match algebraic_to_index(&input) {
+            Ok(index) => match position.get_piece_at_index(&index_to_bitboard(&index)) {
+                Some(piece) => {
+                    let square: u64 = 1 << index;
+                    let moves: u64 = generate_moves(position, &square).clone();
 
-        println!("You wrote {input}");
+                    print_board(position, &square, &moves);
+                    ask_for_move(position, &square, &moves);
 
-        match algebraic_to_index(input.clone()) {
-            Ok(index) => {
-                let square: u64 = 1 << index;
-                let moves: u64 = generate_moves(position, &square).clone();
-                let indicies = bit_scan(&moves);
-                print_board(position, Some(indicies.clone()));
-                for i in indicies.clone() {
-                    let algebraic = index_to_algebraic(&i).unwrap();
-                    print!("{algebraic}, ")
+                    break;
                 }
-                println!();
-                
-                break;
-            }
+                None => {
+                    print_board(position, &0, &0);
+                    println!("No piece on square {}", &input);
+                }
+            },
             Err(e) => {
-                print_board(position, None);
+                print_board(position, &0, &0);
                 println!("{e}");
             }
         }
     }
 }
 
-pub fn make_move() {}
+pub fn ask_for_move(position: &mut Position, root_square: &u64, valid_moves: &u64) {
+
+    loop {
+        let input = get_input("Which square do you want to move it to? ('q' to cancel)");
+
+        if input == "q" {
+            print_board(position, &0, &0);
+            ask_for_piece_selection(position);
+        }
+        
+        match algebraic_to_index(&input) {
+            Ok(index) => {
+                let square: u64 = index_to_bitboard(&index);
+                if square & valid_moves != 0 {
+                    position.move_piece(root_square, &square);
+
+                    print_board(position, &0, &0);
+                    ask_for_piece_selection(position);
+
+                    break;
+                } else {
+                    print_board(position, root_square, valid_moves);
+                    println!("'{}' is not a valid move.", &input);
+                }
+
+                
+            },
+            Err(e) => {
+                print_board(position, root_square, valid_moves);
+
+
+            }
+        
+        }
+
+    }
+}

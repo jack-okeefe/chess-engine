@@ -10,7 +10,7 @@ pub enum Class {
     King,
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Colour {
     White,
     Black,

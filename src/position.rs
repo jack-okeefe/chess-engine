@@ -1,21 +1,22 @@
-use std::collections::HashMap;
-
 use crate::pieces::{Piece, Class, Colour};
 
 pub struct Position {
-    white_pawn: u64,
-    white_knight: u64,
-    white_bishop: u64,
-    white_rook: u64,
-    white_queen: u64,
-    white_king: u64,
-    black_pawn: u64,
-    black_knight: u64,
-    black_bishop: u64,
-    black_rook: u64,
-    black_queen: u64,
-    black_king: u64,
-    en_passant_square: u64,
+    pub white_pawn: u64,
+    pub white_knight: u64,
+    pub white_bishop: u64,
+    pub white_rook: u64,
+    pub white_queen: u64,
+    pub white_king: u64,
+    pub black_pawn: u64,
+    pub black_knight: u64,
+    pub black_bishop: u64,
+    pub black_rook: u64,
+    pub black_queen: u64,
+    pub black_king: u64,
+    pub turn: Colour,
+    pub last_moved_from_square: u64,
+    pub last_moved_to_square: u64,
+    pub en_passant_square: u64,
 }
 
 impl Position {
@@ -103,6 +104,22 @@ impl Position {
         let bitboard = self.get_bitboard_mut(piece);
         *bitboard |= square;
     }
+
+    pub fn move_piece(&mut self, origin_square: &u64, destination_square: &u64) {
+        for piece in Piece::iter() {
+            self.last_moved_from_square = *origin_square;
+            self.last_moved_to_square = *destination_square;
+
+            // remove taken piece from board
+            *self.get_bitboard_mut(piece) &= !destination_square;
+
+            if origin_square & self.get_bitboard(piece) != 0 {
+                *self.get_bitboard_mut(piece) ^= origin_square;
+                *self.get_bitboard_mut(piece) |= destination_square;
+            }
+        }
+        self.turn = !self.turn;
+    }
 }
 
 
@@ -134,6 +151,9 @@ pub fn get_starting_position() -> Position {
         black_rook: 0b1000000100000000000000000000000000000000000000000000000000000000,
         black_queen: 0b0000100000000000000000000000000000000000000000000000000000000000,
         black_king: 0b0001000000000000000000000000000000000000000000000000000000000000,
+        turn: Colour::White,
+        last_moved_from_square: 0b0,
+        last_moved_to_square: 0b0,
         en_passant_square: 0b0,
     };
     starting_position

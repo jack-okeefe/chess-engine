@@ -6,7 +6,8 @@ mod pieces;
 mod position;
 mod utils;
 
-use board::{get_input, print_board};
+use board::ask_for_piece_selection;
+use board::print_board;
 use move_generation::generate_moves;
 use pieces::Piece;
 use position::get_starting_position;
@@ -19,15 +20,15 @@ fn main() {
 
     let mut position = get_starting_position();
 
-    let square = &index_to_bitboard(algebraic_to_index("h3".to_string()).unwrap());
-    position.insert_piece_at_square(&Piece::WhiteQueen, square);
+    let square = index_to_bitboard(&algebraic_to_index(&"h3".to_string()).unwrap());
+    position.insert_piece_at_square(&Piece::WhiteQueen, &square);
 
-    let square2 = &index_to_bitboard(algebraic_to_index("b4".to_string()).unwrap());
-    position.insert_piece_at_square(&Piece::WhiteKnight, square2);
+    let square2 = index_to_bitboard(&algebraic_to_index(&"b4".to_string()).unwrap());
+    position.insert_piece_at_square(&Piece::WhiteKnight, &square2);
 
-    let square3 = &index_to_bitboard(algebraic_to_index("e4".to_string()).unwrap());
-    position.insert_piece_at_square(&Piece::WhiteRook, square3);
+    let square3 = index_to_bitboard(&algebraic_to_index(&"e4".to_string()).unwrap());
+    position.insert_piece_at_square(&Piece::WhiteRook, &square3);
 
-    print_board(&position, None);
-    get_input(&position);
+    print_board(&position, &0, &0);
+    ask_for_piece_selection(&mut position);
 }
