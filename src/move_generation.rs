@@ -1,6 +1,7 @@
 use crate::pieces::{Class, Colour};
 use crate::position::{self, Position};
 use crate::position::{FILES_AB, FILES_GH, FILE_A, FILE_H, RANK_1, RANK_2, RANK_7, RANK_8};
+use crate::utils::{bit_scan, index_to_algebraic};
 
 pub enum Direction {
     North,
@@ -111,27 +112,30 @@ pub fn generate_sliding_moves(
     }
 }
 
-enum PawnAttackDirection {
-    East,
-    West,
-}
 
 // TODO: D.R.Y. in the code for calculating pawn pushes
 // fn generate_pawn_push()
 
-fn generate_pawn_attacks(
-    root_square: &u64,
+pub fn generate_pawn_attacks(
     position: &Position,
-    attack_direction: &PawnAttackDirection,
-    friendly_colour: &Colour,
+    pawns: &u64,
 ) -> u64 {
-    let attack_square = match (friendly_colour, attack_direction) {
-        (Colour::White, PawnAttackDirection::East) => (root_square & !FILE_H) << 9,
-        (Colour::Black, PawnAttackDirection::East) => (root_square & !FILE_H) >> 7,
-        (Colour::White, PawnAttackDirection::West) => (root_square & !FILE_A) << 7,
-        (Colour::Black, PawnAttackDirection::West) => (root_square & !FILE_A) >> 9,
+    let pawn_is_white = pawns & position.get_colour_occupancy(&Colour::White) != 0;
+    let friendly_colour = match pawn_is_white {
+        true => Colour::White,
+        false => Colour::Black
     };
-    return attack_square & position.get_colour_occupancy(&!friendly_colour);
+
+    let east_attacks = match friendly_colour {
+        Colour::White => (pawns & !FILE_H) << 9,
+        Colour::Black => (pawns & !FILE_H) >> 7,
+    };
+    let west_attacks = match friendly_colour {
+        Colour::White => (pawns & !FILE_A) << 7,
+        Colour::Black => (pawns & !FILE_A) >> 9,
+    };
+    let attacks = east_attacks | west_attacks;
+    attacks
 }
 
 pub fn generate_moves(position: &Position, square: &u64) -> u64 {
@@ -160,10 +164,11 @@ pub fn generate_moves(position: &Position, square: &u64) -> u64 {
                 }
                 moves |= first_push | second_push;
 
-                for attack_direction in [PawnAttackDirection::East, PawnAttackDirection::West] {
-                    moves |=
-                        generate_pawn_attacks(square, position, &attack_direction, &piece.colour());
-                }
+                let mut attacks = generate_pawn_attacks(position, square);
+                // for move generation, need to limit by pieces that can actually be taken
+                attacks &= position.get_colour_occupancy(&!piece.colour());
+
+                moves |= attacks
             }
             Class::Knight => {
                 // NorthNorthEast --> NorthNorthWest

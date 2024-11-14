@@ -9,6 +9,7 @@ mod utils;
 use board::ask_for_piece_selection;
 use board::print_board;
 use move_generation::generate_moves;
+use pieces::Colour;
 use pieces::Piece;
 use position::get_starting_position;
 use position::Position;
@@ -21,14 +22,18 @@ fn main() {
     let mut position = get_starting_position();
 
     let square = index_to_bitboard(&algebraic_to_index(&"h4".to_string()).unwrap());
-    position.insert_piece_at_square(&Piece::WhiteBishop, &square);
+    position.insert_piece_at_square(&Piece::WhitePawn, &square);
 
     let square2 = index_to_bitboard(&algebraic_to_index(&"b4".to_string()).unwrap());
-    position.insert_piece_at_square(&Piece::WhiteKnight, &square2);
+    position.insert_piece_at_square(&Piece::BlackPawn, &square2);
 
     let square3 = index_to_bitboard(&algebraic_to_index(&"e4".to_string()).unwrap());
-    position.insert_piece_at_square(&Piece::WhiteBishop, &square3);
+    position.insert_piece_at_square(&Piece::WhitePawn, &square3);
 
-    print_board(&position, &0, &0);
+    print_board(
+        &position,
+        &position.get_attacks_of_colour(&Colour::Black),
+        &0,
+    );
     ask_for_piece_selection(&mut position);
 }
